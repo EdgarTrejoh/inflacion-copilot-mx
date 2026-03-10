@@ -1,0 +1,15 @@
+# Framework para la interfaz web
+streamlit
+plotly
+
+# SDK de Google Cloud para IA y BigQuery
+google-cloud-aiplatform
+google-cloud-bigquery
+
+# Manejo de datos y optimización de consultas
+pandas
+pyarrow
+db-dtypes
+
+# Utilidades
+protobuf
