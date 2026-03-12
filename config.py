@@ -3,7 +3,7 @@ from datetime import date
 # =========================
 # LÍMITES DE FECHA
 # =========================
-MIN_DATE = date(2020, 1, 1)
+MIN_DATE = date(2000, 1, 1)
 MAX_DATE = date(2026, 2, 1)
 
 def get_date_limits():

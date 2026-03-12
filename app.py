@@ -122,9 +122,13 @@ if st.button("Calcular", width='stretch'):
                     title=None
                 )
 
-                # Eje Y iniciando en base 100
+                # Eje Y dinámico basado en los valores reales
+                y_min = df_plot["INPC"].min()
                 y_max = df_plot["INPC"].max()
-                fig.update_yaxes(range=[100, y_max * 1.02])
+                rango_y = y_max - y_min
+                margen = rango_y * 0.1 if rango_y > 0 else y_max * 0.01
+
+                fig.update_yaxes(range=[y_min - margen, y_max + margen])
 
                 # Línea base en 100 (referencia visual)
                 fig.add_hline(

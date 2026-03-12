@@ -62,7 +62,7 @@ def test_validate_llm_output_invalid_date_range():
 def test_validate_llm_output_out_of_bounds_date():
     data = {
         "fecha_inicio": "2019-01-01",
-        "fecha_fin": "2020-01-01",
+        "fecha_fin": "2026-03-01",
         "monto": 100.0,
         "is_valid": True,
         "respuesta_rechazo": ""

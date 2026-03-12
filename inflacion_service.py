@@ -339,6 +339,26 @@ def calcular_equivalencia_inflacion(datos: Dict[str, Any]) -> Dict[str, Any]:
 
 
 # =========================
+# FORMATO DE RESPUESTA
+# =========================
+def formatear_resultado(resultado: Dict[str, Any]) -> str:
+    """
+    Convierte el resultado estructurado en texto amigable.
+    """
+    if not resultado["ok"]:
+        return resultado["mensaje"]
+
+    d = resultado["detalle"]
+    return (
+        f"✅ **Resultado:**\n"
+        f"💰 ${d['monto_inicial']:,.2f} MXN de {d['fecha_inicio']} equivalen a "
+        f"**${d['monto_actualizado']:,.2f} MXN** en {d['fecha_fin']}.\n"
+        f"📈 Inflación acumulada: **{d['inflacion_pct']:.2f}%**\n"
+        f"📚 Fuente: INEGI / Datos Económicos MX"
+    )
+
+
+# =========================
 # IA: ANÁLISIS NARRATIVO
 # =========================
 def generar_comentario_analitico(detalle: Dict[str, Any]) -> str:
@@ -374,6 +394,7 @@ def procesar_pregunta_inflacion(pregunta_usuario: str) -> Dict[str, Any]:
 
     historico = None
     comentario = None
+    texto_resultado = formatear_resultado(resultado)
 
     if resultado["ok"] and resultado["detalle"]:
         detalle = resultado["detalle"]
@@ -388,5 +409,22 @@ def procesar_pregunta_inflacion(pregunta_usuario: str) -> Dict[str, Any]:
         "intencion": intencion,
         "resultado": resultado,
         "historico": historico,
+        "texto_resultado": texto_resultado,
         "comentario_analitico": comentario,
     }
+
+
+# =========================
+# PRUEBA CLI
+# =========================
+if __name__ == "__main__":
+    pregunta = "¿A cuánto equivalen 100 pesos de enero 2020 a enero 2024?"
+    print(f"🤔 Usuario: {pregunta}\n")
+
+    salida = procesar_pregunta_inflacion(pregunta)
+
+    print(salida.get("texto_resultado", ""))
+
+    if salida.get("comentario_analitico"):
+        print("\n🤖 **Análisis del Asistente:**")
+        print(salida["comentario_analitico"])
