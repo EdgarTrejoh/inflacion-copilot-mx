@@ -140,14 +140,43 @@ Antes de cualquier cálculo, el agente:
 git clone https://github.com/tu-usuario/inflacion-copilot-mx.git
 cd inflacion-copilot-mx
 pip install -r requirements.txt
+```
+
+### Configuración del Entorno (`.env`)
+
+Crea un archivo `.env` en la raíz del proyecto para definir las credenciales:
+
+```env
+GCP_PROJECT_ID="tu-proyecto-gcp"
+GCP_LOCATION="us-central1"
+GCP_TABLE_ID="tu-proyecto-gcp.datos_economicos_mx.inflacion_historica"
+```
+
+### Configuración de Fechas (`config.py`)
+
+Las fechas máximas y mínimas de consulta están definidas en `config.py`. Ajusta `MIN_DATE` y `MAX_DATE` de ser necesario (la plataforma soporta cálculos hasta el **1 de febrero de 2026**).
+
+### Correr la Aplicación
+
+```bash
 streamlit run app.py
+```
+
+### Ejecutar Pruebas Automatizadas (Testing)
+
+El proyecto cuenta con testing unitario implementado con `pytest`. Para correr la batería de pruebas:
+
+```bash
+pytest test_inflacion_service.py -v
 ```
 
 ## 🐳 Despliegue con Docker
 
+Asegúrate de tener listo tu archivo `.env`.
+
 ```bash
 docker build -t inflacion-app .
-docker run -p 8080:8080 inflacion-app
+docker run --env-file .env -p 8080:8080 inflacion-app
 ```
 
 ---

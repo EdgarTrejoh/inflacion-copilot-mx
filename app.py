@@ -50,7 +50,7 @@ pregunta = st.text_input(
 # =========================
 # BOTÓN PRINCIPAL
 # =========================
-if st.button("Calcular", use_container_width=True):
+if st.button("Calcular", width='stretch'):
 
     if not pregunta.strip():
         st.error("Por favor, escribe una pregunta primero.")
@@ -141,12 +141,12 @@ if st.button("Calcular", use_container_width=True):
                     yaxis_title="INPC",
                 )
 
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
 
                 with st.expander("Ver histórico de datos"):
                     df_show = historico.copy()
                     df_show["INPC"] = df_show["INPC"].round(2)
-                    st.dataframe(df_show, use_container_width=True)
+                    st.dataframe(df_show, width='stretch')
 
             # =========================
             # ANÁLISIS IA

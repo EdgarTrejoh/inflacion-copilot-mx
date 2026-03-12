@@ -2,6 +2,9 @@ import os
 import json
 from datetime import datetime, date
 from typing import Any, Dict, Optional
+from dotenv import load_dotenv
+
+load_dotenv()
 
 import streamlit as st
 import vertexai
@@ -12,12 +15,11 @@ from google.cloud import bigquery
 # =========================
 # CONFIGURACIÓN
 # =========================
-PROJECT_ID = os.getenv("GCP_PROJECT_ID", "fluted-oath-477301-c1")
-LOCATION = os.getenv("GCP_LOCATION", "us-central1")
-TABLE_ID = f"{PROJECT_ID}.datos_economicos_mx.inflacion_historica"
+PROJECT_ID = os.getenv("GCP_PROJECT_ID")
+LOCATION = os.getenv("GCP_LOCATION")
+TABLE_ID = os.getenv("GCP_TABLE_ID")
 
-MIN_DATE = date(2020, 1, 1)
-MAX_DATE = date(2026, 2, 1)  # solo febrero 2026
+from config import MIN_DATE, MAX_DATE
 
 
 # =========================
@@ -135,23 +137,8 @@ def validate_llm_output(data: Dict[str, Any]) -> Dict[str, Any]:
             "monto": monto,
         }
 
-    if fecha_inicio.year == 2026 and fecha_inicio != date(2026, 2, 1):
-        return {
-            "is_valid": False,
-            "respuesta_rechazo": "Para 2026 solo se permite febrero (2026-02-01).",
-            "fecha_inicio": fecha_inicio.isoformat(),
-            "fecha_fin": fecha_fin.isoformat(),
-            "monto": monto,
-        }
-
-    if fecha_fin.year == 2026 and fecha_fin != date(2026, 2, 1):
-        return {
-            "is_valid": False,
-            "respuesta_rechazo": "Para 2026 solo se permite febrero (2026-02-01).",
-            "fecha_inicio": fecha_inicio.isoformat(),
-            "fecha_fin": fecha_fin.isoformat(),
-            "monto": monto,
-        }
+    # La validación fecha_fin > MAX_DATE ya captura que no sean mayores a MAX_DATE.
+    # Por lo que no es necesario restringir otros meses válidos en 2026 antes o iguales a la fecha máxima.
 
     return {
         "is_valid": True,
@@ -182,8 +169,7 @@ Devuelve ÚNICAMENTE un JSON válido con esta estructura exacta:
 
 Reglas:
 - Solo aceptas preguntas sobre inflación o poder adquisitivo en México.
-- El rango permitido es de 2020-01-01 a 2026-02-01.
-- Si el año es 2026, solo se permite febrero (2026-02-01).
+- El rango permitido es de {MIN_DATE.isoformat()} a {MAX_DATE.isoformat()}.
 - Si el usuario menciona solo mes y año, usa el día 01.
 - Si no hay monto explícito, usa 1.0.
 - Si no es una consulta válida sobre inflación en México, marca is_valid=false.

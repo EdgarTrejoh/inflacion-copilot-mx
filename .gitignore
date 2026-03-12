@@ -1,4 +1,61 @@
+# ---- Python ----
 __pycache__/
-*.pyc
-.env
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+.eggs/
+.pytest_cache
+build/
+dist/
+pip-wheel-metadata/
+
+# ---- Virtual environments ----
+.venv/
+venv/
+env/
+ENV/
+
+# ---- Jupyter ----
+.ipynb_checkpoints/
+
+# ---- IDEs ----
+.vscode/
+.idea/
+*.code-workspace
+
+# ---- OS files ----
 .DS_Store
+Thumbs.db
+
+# ---- Logs ----
+*.log
+
+# ---- Secrets ----
+.env
+.env.*
+
+# ---- Data outputs (Excel/CSV/Parquet) ----
+output/
+data/
+*.xlsx
+*.csv
+*.parquet
+
+# ---- Temporary files ----
+*.tmp
+*.bak
+*.swp
+
+# ---- Coverage / tests ----
+.coverage
+htmlcov/
+.pytest_cache/
+
+# ---- Streamlit (si lo usas luego) ----
+.streamlit/
+
+# ---- Docker ----
+*.pid
