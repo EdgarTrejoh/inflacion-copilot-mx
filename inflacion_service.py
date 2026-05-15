@@ -30,6 +30,23 @@ def get_bq_client() -> bigquery.Client:
     return bigquery.Client(project=PROJECT_ID)
 
 
+@st.cache_data(ttl=86400, show_spinner=False)
+def obtener_max_fecha_bq() -> date:
+    """Obtiene dinámicamente la última fecha disponible del INPC en BigQuery."""
+    try:
+        client = get_bq_client()
+        if not TABLE_ID:
+            return MAX_DATE
+        query = f"SELECT MAX(DATE(Fecha)) as max_fecha FROM `{TABLE_ID}` WHERE Indicador = 'INPC - General'"
+        query_job = client.query(query)
+        rows = list(query_job.result())
+        if rows and rows[0]["max_fecha"]:
+            return rows[0]["max_fecha"]
+    except Exception as e:
+        print(f"⚠️ Error al consultar fecha máxima en BQ: {e}")
+    return MAX_DATE
+
+
 @st.cache_resource
 def init_vertex() -> bool:
     vertexai.init(project=PROJECT_ID, location=LOCATION)
@@ -126,19 +143,20 @@ def validate_llm_output(data: Dict[str, Any]) -> Dict[str, Any]:
             "monto": monto,
         }
 
-    if fecha_inicio < MIN_DATE or fecha_fin > MAX_DATE:
+    max_date_dinamica = obtener_max_fecha_bq()
+
+    if fecha_inicio < MIN_DATE or fecha_fin > max_date_dinamica:
         return {
             "is_valid": False,
             "respuesta_rechazo": (
-                f"El rango permitido es de {MIN_DATE.isoformat()} a {MAX_DATE.isoformat()}."
+                f"El rango permitido es de {MIN_DATE.isoformat()} a {max_date_dinamica.isoformat()}."
             ),
             "fecha_inicio": fecha_inicio.isoformat(),
             "fecha_fin": fecha_fin.isoformat(),
             "monto": monto,
         }
 
-    # La validación fecha_fin > MAX_DATE ya captura que no sean mayores a MAX_DATE.
-    # Por lo que no es necesario restringir otros meses válidos en 2026 antes o iguales a la fecha máxima.
+    # La validación ya captura que no sean mayores a la fecha máxima actual.
 
     return {
         "is_valid": True,
@@ -154,22 +172,23 @@ def validate_llm_output(data: Dict[str, Any]) -> Dict[str, Any]:
 # =========================
 def clasificar_consulta_inflacion(pregunta_usuario: str) -> Dict[str, Any]:
     model = get_gemini_model()
+    max_date_dinamica = obtener_max_fecha_bq()
 
-    instrucciones = """
+    instrucciones = f"""
 Eres un extractor de datos para una calculadora de inflación mexicana.
 
 Devuelve ÚNICAMENTE un JSON válido con esta estructura exacta:
-{
+{{
   "fecha_inicio": "YYYY-MM-DD",
   "fecha_fin": "YYYY-MM-DD",
   "monto": float,
   "is_valid": boolean,
   "respuesta_rechazo": "string"
-}
+}}
 
 Reglas:
 - Solo aceptas preguntas sobre inflación o poder adquisitivo en México.
-- El rango permitido es de {MIN_DATE.isoformat()} a {MAX_DATE.isoformat()}.
+- El rango permitido es de {MIN_DATE.isoformat()} a {max_date_dinamica.isoformat()}.
 - Si el usuario menciona solo mes y año, usa el día 01.
 - Si no hay monto explícito, usa 1.0.
 - Si no es una consulta válida sobre inflación en México, marca is_valid=false.
@@ -187,7 +206,15 @@ Reglas:
             f"{instrucciones}\n\nPregunta del usuario: {pregunta_usuario}",
             generation_config=config,
         )
-        raw_data = json.loads(response.text)
+        
+        # Limpieza robusta del JSON en caso de que Gemini devuelva markdown
+        raw_text = response.text.strip()
+        if raw_text.startswith("```"):
+            raw_text = raw_text.split("\n", 1)[-1]
+        if raw_text.endswith("```"):
+            raw_text = raw_text.rsplit("```", 1)[0].strip()
+            
+        raw_data = json.loads(raw_text)
         return validate_llm_output(raw_data)
 
     except json.JSONDecodeError:

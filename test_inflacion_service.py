@@ -61,8 +61,8 @@ def test_validate_llm_output_invalid_date_range():
 
 def test_validate_llm_output_out_of_bounds_date():
     data = {
-        "fecha_inicio": "2019-01-01",
-        "fecha_fin": "2026-03-01",
+        "fecha_inicio": "1999-01-01",
+        "fecha_fin": "2020-01-01",
         "monto": 100.0,
         "is_valid": True,
         "respuesta_rechazo": ""
@@ -87,7 +87,7 @@ def test_validate_llm_output_valid_2026_date():
 def test_validate_llm_output_invalid_future_date():
     data = {
         "fecha_inicio": "2026-01-01",
-        "fecha_fin": "2026-03-01",
+        "fecha_fin": "2050-03-01",
         "monto": 100.0,
         "is_valid": True,
         "respuesta_rechazo": ""
