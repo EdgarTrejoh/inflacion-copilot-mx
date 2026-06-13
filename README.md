@@ -162,12 +162,82 @@ Las fechas máximas y mínimas de consulta están definidas en `config.py`. Ajus
 streamlit run app.py
 ```
 
+### Correr la API REST local
+
+La API FastAPI expone calculos estructurados de inflacion acumulada para consumo de otros servicios. Este modo no usa IA generativa, Gemini, Vertex AI ni clasificacion de intencion; solo consulta INPC en BigQuery y calcula:
+
+```text
+inflation_pct = ((inpc_end / inpc_start) - 1) * 100
+```
+
+La UI conversacional de Streamlit sigue funcionando en `app.py` como experiencia separada.
+
+```bash
+uvicorn api.main:app --reload --port 8020
+```
+
+#### `GET /health`
+
+```bash
+curl http://127.0.0.1:8020/health
+```
+
+Respuesta:
+
+```json
+{
+  "status": "ok",
+  "service": "inflacion-copilot-api"
+}
+```
+
+#### `GET /inflation/period`
+
+Consulta inflacion acumulada entre dos fechas con formato `YYYY-MM-DD`:
+
+```bash
+curl "http://127.0.0.1:8020/inflation/period?start_date=2024-01-01&end_date=2025-12-01"
+```
+
+Respuesta esperada:
+
+```json
+{
+  "start_date": "2024-01-01",
+  "end_date": "2025-12-01",
+  "inpc_start": 133.555,
+  "inpc_end": 140.123,
+  "factor": 1.0491782415487993,
+  "inflation_pct": 4.91782415487993,
+  "source": "INEGI / BigQuery",
+  "indicator": "INPC - General",
+  "method": "inflation_pct = ((inpc_end / inpc_start) - 1) * 100"
+}
+```
+
+Variables requeridas para la API:
+
+```env
+GCP_PROJECT_ID="tu-proyecto-gcp"
+GCP_TABLE_ID="tu-proyecto-gcp.datos_economicos_mx.inflacion_historica"
+```
+
+`GCP_LOCATION` se mantiene para la app Streamlit con Vertex AI. La API no la requiere.
+
+Esta API puede ser consumida posteriormente por `infonavit-strategic-report-api`; la integracion con INFONAVIT no forma parte de esta fase.
+
 ### Ejecutar Pruebas Automatizadas (Testing)
 
 El proyecto cuenta con testing unitario implementado con `pytest`. Para correr la batería de pruebas:
 
 ```bash
 pytest test_inflacion_service.py -v
+```
+
+Para correr toda la suite, incluyendo pruebas de API con mocks:
+
+```bash
+python -m pytest -q
 ```
 
 ## 🐳 Despliegue con Docker
@@ -178,6 +248,8 @@ Asegúrate de tener listo tu archivo `.env`.
 docker build -t inflacion-app .
 docker run --env-file .env -p 8080:8080 inflacion-app
 ```
+
+El Dockerfile actual conserva el arranque productivo de Streamlit. Preparar una imagen o comando de despliegue para la API FastAPI queda como fase posterior para no romper el comportamiento existente.
 
 ---
 
