@@ -226,6 +226,56 @@ GCP_TABLE_ID="tu-proyecto-gcp.datos_economicos_mx.inflacion_historica"
 
 Esta API puede ser consumida posteriormente por `infonavit-strategic-report-api`; la integracion con INFONAVIT no forma parte de esta fase.
 
+#### `GET /inflation/average-period`
+
+Calcula inflacion promedio comparable entre dos periodos anuales o YTD. A diferencia de `/inflation/period`, que sirve para equivalencias punto-a-punto entre dos fechas, este endpoint sirve para comparar agregados acumulados como monto colocado INFONAVIT, ticket promedio anual o cortes YTD.
+
+Formula:
+
+```text
+inflation_pct = ((avg_inpc_current_period / avg_inpc_previous_period) - 1) * 100
+```
+
+Ejemplo para comparar INFONAVIT 2025 vs 2024 ano completo:
+
+```bash
+curl "http://127.0.0.1:8020/inflation/average-period?current_year=2025&previous_year=2024&month_limit=12"
+```
+
+Ejemplo YTD comparable:
+
+```bash
+curl "http://127.0.0.1:8020/inflation/average-period?current_year=2026&previous_year=2025&month_limit=4"
+```
+
+Respuesta esperada:
+
+```json
+{
+  "current_year": 2025,
+  "previous_year": 2024,
+  "month_limit": 12,
+  "comparability": "YTD comparable",
+  "current_period": {
+    "start_date": "2025-01-01",
+    "end_date": "2025-12-01",
+    "avg_inpc": 140.123
+  },
+  "previous_period": {
+    "start_date": "2024-01-01",
+    "end_date": "2024-12-01",
+    "avg_inpc": 133.555
+  },
+  "factor": 1.0491782415487993,
+  "inflation_pct": 4.91782415487993,
+  "source": "INEGI / BigQuery",
+  "indicator": "INPC - General",
+  "method": "inflation_pct = ((avg_inpc_current_period / avg_inpc_previous_period) - 1) * 100"
+}
+```
+
+Este endpoint tampoco usa IA. Es deterministico, consulta BigQuery en modo lectura y puede ser consumido posteriormente por `infonavit-strategic-report-api`.
+
 ### Ejecutar Pruebas Automatizadas (Testing)
 
 El proyecto cuenta con testing unitario implementado con `pytest`. Para correr la batería de pruebas:
