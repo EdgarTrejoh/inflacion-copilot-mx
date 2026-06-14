@@ -107,7 +107,10 @@ def _get_bigquery_client() -> bigquery.Client:
     if not project_id:
         raise BigQueryConfigError("Configuracion incompleta para consultar BigQuery.")
 
-    return bigquery.Client(project=project_id)
+    try:
+        return bigquery.Client(project=project_id)
+    except Exception as exc:
+        raise BigQueryConfigError("Configuracion incompleta para consultar BigQuery.") from exc
 
 
 def _get_table_id() -> str:

@@ -290,6 +290,8 @@ Para correr toda la suite, incluyendo pruebas de API con mocks:
 python -m pytest -q
 ```
 
+Nota de dependencias de testing: la suite usa `fastapi.testclient.TestClient`, que en versiones recientes de Starlette recomienda `httpx2`; por eso `requirements.txt` incluye `httpx2==2.4.0`.
+
 ## 🐳 Despliegue con Docker
 
 Asegúrate de tener listo tu archivo `.env`.
@@ -299,7 +301,44 @@ docker build -t inflacion-app .
 docker run --env-file .env -p 8080:8080 inflacion-app
 ```
 
-El Dockerfile actual conserva el arranque productivo de Streamlit. Preparar una imagen o comando de despliegue para la API FastAPI queda como fase posterior para no romper el comportamiento existente.
+El Dockerfile actual conserva el arranque productivo de Streamlit.
+
+### Modo API con Docker
+
+`Dockerfile.api` empaqueta solo el modo API FastAPI para Cloud Run. La imagen arranca Uvicorn con el puerto definido por `PORT`, usando `8080` por defecto.
+
+Build local:
+
+```bash
+docker build -f Dockerfile.api -t inflacion-copilot-api .
+```
+
+Run local:
+
+```bash
+docker run --rm -p 8080:8080 --env-file .env inflacion-copilot-api
+```
+
+Variables requeridas en runtime:
+
+```env
+GCP_PROJECT_ID="tu-proyecto-gcp"
+GCP_TABLE_ID="tu-proyecto-gcp.datos_economicos_mx.inflacion_historica"
+```
+
+Health check:
+
+```bash
+curl http://127.0.0.1:8080/health
+```
+
+Endpoint de inflacion promedio comparable:
+
+```bash
+curl "http://127.0.0.1:8080/inflation/average-period?current_year=2025&previous_year=2024&month_limit=12"
+```
+
+`Dockerfile.api` no copia `.env` ni credenciales dentro de la imagen; las variables y credenciales deben inyectarse en runtime. Streamlit sigue usando el `Dockerfile` original.
 
 ---
 
