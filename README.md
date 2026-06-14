@@ -340,6 +340,33 @@ curl "http://127.0.0.1:8080/inflation/average-period?current_year=2025&previous_
 
 `Dockerfile.api` no copia `.env` ni credenciales dentro de la imagen; las variables y credenciales deben inyectarse en runtime. Streamlit sigue usando el `Dockerfile` original.
 
+### Build API con Cloud Build
+
+`cloudbuild.api.yaml` construye la imagen de la API con `Dockerfile.api` y la publica en Artifact Registry. No modifica el Dockerfile original de Streamlit.
+
+Build:
+
+```powershell
+gcloud builds submit --config cloudbuild.api.yaml --region us-central1 .
+```
+
+Deploy posterior a Cloud Run:
+
+```powershell
+gcloud run deploy inflacion-copilot-api `
+  --image us-central1-docker.pkg.dev/PROJECT_ID/cloud-run-source-deploy/inflacion-copilot-api:latest `
+  --region us-central1 `
+  --allow-unauthenticated `
+  --port 8080 `
+  --memory 512Mi `
+  --cpu 1 `
+  --min-instances 0 `
+  --max-instances 1 `
+  --set-env-vars GCP_PROJECT_ID=PROJECT_ID,GCP_LOCATION=us-central1,GCP_TABLE_ID=PROJECT_ID.datos_economicos_mx.inflacion_historica
+```
+
+Reemplaza `PROJECT_ID` por el proyecto GCP real al ejecutar el deploy. No incluyas `.env`, service account JSON ni credenciales dentro de la imagen.
+
 ---
 
 ## 🧪 Casos de Uso
