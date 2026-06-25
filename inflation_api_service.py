@@ -15,6 +15,7 @@ METHOD = "inflation_pct = ((inpc_end / inpc_start) - 1) * 100"
 AVERAGE_PERIOD_METHOD = (
     "inflation_pct = ((avg_inpc_current_period / avg_inpc_previous_period) - 1) * 100"
 )
+MONTHLY_COMPARABLE_METHOD = "factor = current_month_inpc / previous_same_month_inpc"
 DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 MIN_YEAR = 2000
 MAX_YEAR = 2100
@@ -100,6 +101,14 @@ def _validate_average_period_params(
         raise InvalidParameterError("month_limit debe estar entre 1 y 12.")
 
     return parsed_current_year, parsed_previous_year, parsed_month_limit
+
+
+def _validate_comparable_year_month_params(
+    current_year: int | str | None,
+    previous_year: int | str | None,
+    month_limit: int | str | None,
+) -> tuple[int, int, int]:
+    return _validate_average_period_params(current_year, previous_year, month_limit)
 
 
 def _get_bigquery_client() -> bigquery.Client:
@@ -255,6 +264,49 @@ def get_average_inpc_for_period(
     }
 
 
+def get_monthly_inpc_for_years(
+    current_year: int,
+    previous_year: int,
+    month_limit: int,
+    client: bigquery.Client | None = None,
+) -> dict[tuple[int, int], float | None]:
+    bq_client = client or _get_bigquery_client()
+    table_id = _get_table_id()
+
+    query = f"""
+    SELECT
+      EXTRACT(YEAR FROM DATE(Fecha)) AS year,
+      EXTRACT(MONTH FROM DATE(Fecha)) AS month,
+      OBS_VALUE
+    FROM `{table_id}`
+    WHERE Indicador = 'INPC - General'
+      AND EXTRACT(YEAR FROM DATE(Fecha)) IN (@current_year, @previous_year)
+      AND EXTRACT(MONTH FROM DATE(Fecha)) BETWEEN 1 AND @month_limit
+    """
+
+    job_config = bigquery.QueryJobConfig(
+        query_parameters=[
+            bigquery.ScalarQueryParameter("current_year", "INT64", current_year),
+            bigquery.ScalarQueryParameter("previous_year", "INT64", previous_year),
+            bigquery.ScalarQueryParameter("month_limit", "INT64", month_limit),
+        ]
+    )
+
+    try:
+        rows = list(bq_client.query(query, job_config=job_config).result())
+    except Exception as exc:
+        raise BigQueryQueryError("Error inesperado al consultar BigQuery.") from exc
+
+    values: dict[tuple[int, int], float | None] = {}
+    for row in rows:
+        obs_value = row["OBS_VALUE"]
+        values[(int(row["year"]), int(row["month"]))] = (
+            float(obs_value) if obs_value is not None else None
+        )
+
+    return values
+
+
 def _validate_average_period_data(
     period: dict[str, Any],
     year: int,
@@ -332,4 +384,80 @@ def calculate_average_period_inflation(
         "source": SOURCE,
         "indicator": INDICATOR,
         "method": AVERAGE_PERIOD_METHOD,
+    }
+
+
+def calculate_monthly_comparable_inflation(
+    current_year: int | str | None,
+    previous_year: int | str | None,
+    month_limit: int | str | None,
+    client: bigquery.Client | None = None,
+) -> dict[str, Any]:
+    parsed_current_year, parsed_previous_year, parsed_month_limit = (
+        _validate_comparable_year_month_params(current_year, previous_year, month_limit)
+    )
+
+    monthly_values = get_monthly_inpc_for_years(
+        current_year=parsed_current_year,
+        previous_year=parsed_previous_year,
+        month_limit=parsed_month_limit,
+        client=client,
+    )
+
+    factors = []
+    warnings = []
+
+    for month in range(1, parsed_month_limit + 1):
+        current_inpc = monthly_values.get((parsed_current_year, month))
+        previous_inpc = monthly_values.get((parsed_previous_year, month))
+        current_period = f"{parsed_current_year}-{month:02d}"
+        previous_period = f"{parsed_previous_year}-{month:02d}"
+
+        if current_inpc is None or previous_inpc is None:
+            missing_periods = []
+            if current_inpc is None:
+                missing_periods.append(current_period)
+            if previous_inpc is None:
+                missing_periods.append(previous_period)
+            warnings.append(
+                "No se encontraron datos INPC para "
+                f"{', '.join(missing_periods)}; mes {month} omitido."
+            )
+            continue
+
+        if previous_inpc == 0:
+            raise InvalidInpcValueError(
+                f"El INPC previo de {previous_period} es cero; no se puede calcular inflacion."
+            )
+
+        factor = current_inpc / previous_inpc
+        inflation_pct = (factor - 1) * 100
+
+        factors.append(
+            {
+                "month": month,
+                "current_period": current_period,
+                "previous_period": previous_period,
+                "current_inpc": current_inpc,
+                "previous_inpc": previous_inpc,
+                "factor": factor,
+                "inflation_pct": inflation_pct,
+            }
+        )
+
+    if not factors:
+        raise MissingInflationDataError(
+            "No hay pares mensuales INPC comparables para los parametros solicitados."
+        )
+
+    return {
+        "current_year": parsed_current_year,
+        "previous_year": parsed_previous_year,
+        "month_limit": parsed_month_limit,
+        "comparability": "monthly_same_month",
+        "factors": factors,
+        "warnings": warnings,
+        "source": SOURCE,
+        "indicator": INDICATOR,
+        "method": MONTHLY_COMPARABLE_METHOD,
     }

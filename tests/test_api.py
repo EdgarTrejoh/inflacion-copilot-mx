@@ -321,3 +321,143 @@ def test_inflation_average_period_errors_do_not_leak_sensitive_details():
     assert response.status_code == 400
     for term in forbidden_terms:
         assert term not in body
+
+
+def test_inflation_monthly_comparable_returns_200_with_mocked_data(monkeypatch):
+    expected = {
+        "current_year": 2026,
+        "previous_year": 2025,
+        "month_limit": 1,
+        "comparability": "monthly_same_month",
+        "factors": [
+            {
+                "month": 1,
+                "current_period": "2026-01",
+                "previous_period": "2025-01",
+                "current_inpc": 140.1,
+                "previous_inpc": 134.2,
+                "factor": 1.0439642324888228,
+                "inflation_pct": 4.3964232488822755,
+            }
+        ],
+        "warnings": [],
+        "source": "INEGI / BigQuery",
+        "indicator": "INPC - General",
+        "method": "factor = current_month_inpc / previous_same_month_inpc",
+    }
+
+    def fake_calculate_monthly_comparable_inflation(
+        current_year,
+        previous_year,
+        month_limit,
+    ):
+        assert current_year == 2026
+        assert previous_year == 2025
+        assert month_limit == 1
+        return expected
+
+    monkeypatch.setattr(
+        "api.main.calculate_monthly_comparable_inflation",
+        fake_calculate_monthly_comparable_inflation,
+    )
+
+    response = client.get(
+        "/inflation/monthly-comparable?current_year=2026&previous_year=2025&month_limit=1"
+    )
+
+    assert response.status_code == 200
+    assert response.json() == expected
+
+
+def test_inflation_monthly_comparable_rejects_month_limit_zero():
+    response = client.get(
+        "/inflation/monthly-comparable?current_year=2026&previous_year=2025&month_limit=0"
+    )
+
+    assert response.status_code == 400
+    assert "month_limit" in response.json()["detail"]
+
+
+def test_inflation_monthly_comparable_rejects_month_limit_thirteen():
+    response = client.get(
+        "/inflation/monthly-comparable?current_year=2026&previous_year=2025&month_limit=13"
+    )
+
+    assert response.status_code == 400
+    assert "month_limit" in response.json()["detail"]
+
+
+def test_inflation_monthly_comparable_missing_month_limit_returns_controlled_error():
+    response = client.get(
+        "/inflation/monthly-comparable?current_year=2026&previous_year=2025"
+    )
+
+    assert response.status_code == 400
+    assert "month_limit" in response.json()["detail"]
+
+
+def test_inflation_monthly_comparable_missing_data_returns_404(monkeypatch):
+    def fake_calculate_monthly_comparable_inflation(
+        current_year,
+        previous_year,
+        month_limit,
+    ):
+        raise MissingInflationDataError(
+            "No hay pares mensuales INPC comparables para los parametros solicitados."
+        )
+
+    monkeypatch.setattr(
+        "api.main.calculate_monthly_comparable_inflation",
+        fake_calculate_monthly_comparable_inflation,
+    )
+
+    response = client.get(
+        "/inflation/monthly-comparable?current_year=2026&previous_year=2025&month_limit=1"
+    )
+
+    assert response.status_code == 404
+    assert "pares mensuales" in response.json()["detail"]
+
+
+def test_inflation_monthly_comparable_zero_previous_inpc_returns_400(monkeypatch):
+    def fake_calculate_monthly_comparable_inflation(
+        current_year,
+        previous_year,
+        month_limit,
+    ):
+        raise InvalidInpcValueError(
+            "El INPC previo de 2025-01 es cero; no se puede calcular inflacion."
+        )
+
+    monkeypatch.setattr(
+        "api.main.calculate_monthly_comparable_inflation",
+        fake_calculate_monthly_comparable_inflation,
+    )
+
+    response = client.get(
+        "/inflation/monthly-comparable?current_year=2026&previous_year=2025&month_limit=1"
+    )
+
+    assert response.status_code == 400
+    assert "2025-01" in response.json()["detail"]
+
+
+def test_inflation_monthly_comparable_errors_do_not_leak_sensitive_details():
+    response = client.get(
+        "/inflation/monthly-comparable?current_year=2025&previous_year=2026&month_limit=4"
+    )
+    body = response.text.lower()
+
+    forbidden_terms = [
+        "credential",
+        "private key",
+        "service account",
+        "traceback",
+        "stack trace",
+        "gcp_table_id",
+        "datos_economicos_mx.inflacion_historica",
+    ]
+
+    assert response.status_code == 400
+    for term in forbidden_terms:
+        assert term not in body

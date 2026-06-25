@@ -9,6 +9,7 @@ from inflation_api_service import (
     MissingInflationDataError,
     calculate_average_period_inflation,
     calculate_inflation_period,
+    calculate_monthly_comparable_inflation,
 )
 
 
@@ -53,6 +54,30 @@ def inflation_average_period(
 ) -> dict:
     try:
         return calculate_average_period_inflation(
+            current_year=current_year,
+            previous_year=previous_year,
+            month_limit=month_limit,
+        )
+    except InvalidParameterError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except MissingInflationDataError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except InvalidInpcValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except BigQueryConfigError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    except BigQueryQueryError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/inflation/monthly-comparable")
+def inflation_monthly_comparable(
+    current_year: int | None = Query(default=None),
+    previous_year: int | None = Query(default=None),
+    month_limit: int | None = Query(default=None),
+) -> dict:
+    try:
+        return calculate_monthly_comparable_inflation(
             current_year=current_year,
             previous_year=previous_year,
             month_limit=month_limit,

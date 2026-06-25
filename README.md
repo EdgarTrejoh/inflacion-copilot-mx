@@ -276,6 +276,50 @@ Respuesta esperada:
 
 Este endpoint tampoco usa IA. Es deterministico, consulta BigQuery en modo lectura y puede ser consumido posteriormente por `infonavit-strategic-report-api`.
 
+#### `GET /inflation/monthly-comparable`
+
+Calcula factores de inflacion comparables mes contra el mismo mes del ano previo. Este endpoint esta pensado para deflactar cada punto mensual de una serie INFONAVIT, no para agregados acumulados.
+
+Formula:
+
+```text
+factor = current_month_inpc / previous_same_month_inpc
+```
+
+Ejemplo:
+
+```bash
+curl "http://127.0.0.1:8020/inflation/monthly-comparable?current_year=2026&previous_year=2025&month_limit=4"
+```
+
+Respuesta esperada:
+
+```json
+{
+  "current_year": 2026,
+  "previous_year": 2025,
+  "month_limit": 4,
+  "comparability": "monthly_same_month",
+  "factors": [
+    {
+      "month": 1,
+      "current_period": "2026-01",
+      "previous_period": "2025-01",
+      "current_inpc": 140.1,
+      "previous_inpc": 134.2,
+      "factor": 1.0439642324888228,
+      "inflation_pct": 4.3964232488822755
+    }
+  ],
+  "warnings": [],
+  "source": "INEGI / BigQuery",
+  "indicator": "INPC - General",
+  "method": "factor = current_month_inpc / previous_same_month_inpc"
+}
+```
+
+Si falta INPC para alguno de los meses solicitados, el mes se omite de `factors` y se reporta en `warnings`. Si no hay ningun par mensual comparable, la API devuelve 404.
+
 ### Ejecutar Pruebas Automatizadas (Testing)
 
 El proyecto cuenta con testing unitario implementado con `pytest`. Para correr la batería de pruebas:
