@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException, Query
 
+from api.copilot import router as copilot_router
 from inflation_api_service import (
     BigQueryConfigError,
     BigQueryQueryError,
@@ -17,6 +18,8 @@ app = FastAPI(
     title="Inflacion Copilot MX API",
     version="0.1.0",
 )
+
+app.include_router(copilot_router)
 
 
 @app.get("/health")
