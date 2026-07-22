@@ -9,10 +9,10 @@ export class ApiClientError extends Error {
   }
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+async function request<T>(baseUrl: string, path: string, init?: RequestInit): Promise<T> {
   let response: Response
   try {
-    response = await fetch(`${API_BASE_URL}${path}`, {
+    response = await fetch(`${baseUrl}${path}`, {
       ...init,
       headers: { Accept: "application/json", ...(init?.body ? { "Content-Type": "application/json" } : {}), ...init?.headers },
     })
@@ -37,12 +37,28 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return payload as T
 }
 
-export const submitCopilotQuery = (payload: CopilotQueryRequest) =>
-  request<CopilotQueryResponse>("/copilot/query", { method: "POST", body: JSON.stringify(payload) })
-
-export const getCopilotDateRange = () => request<CopilotDateRange>("/copilot/date-range")
-
-export const getCopilotHistory = (startDate: string, endDate: string) => {
-  const params = new URLSearchParams({ start_date: startDate, end_date: endDate })
-  return request<CopilotHistoryResponse>(`/copilot/history?${params.toString()}`)
+export function createCopilotApiClient(baseUrl: string) {
+  const normalizedBaseUrl = baseUrl.trim().replace(/\/$/, "")
+  return {
+    submitQuery: (payload: CopilotQueryRequest) =>
+      request<CopilotQueryResponse>(normalizedBaseUrl, "/copilot/query", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+    getDateRange: () =>
+      request<CopilotDateRange>(normalizedBaseUrl, "/copilot/date-range"),
+    getHistory: (startDate: string, endDate: string) => {
+      const params = new URLSearchParams({ start_date: startDate, end_date: endDate })
+      return request<CopilotHistoryResponse>(
+        normalizedBaseUrl,
+        `/copilot/history?${params.toString()}`,
+      )
+    },
+  }
 }
+
+const defaultClient = createCopilotApiClient(API_BASE_URL)
+
+export const submitCopilotQuery = defaultClient.submitQuery
+export const getCopilotDateRange = defaultClient.getDateRange
+export const getCopilotHistory = defaultClient.getHistory

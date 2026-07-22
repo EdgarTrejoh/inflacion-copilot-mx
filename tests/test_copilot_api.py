@@ -49,6 +49,33 @@ def _successful_copilot_output():
     }
 
 
+def test_local_vite_origin_is_allowed_by_cors():
+    response = client.options(
+        "/copilot/query",
+        headers={
+            "Origin": "http://localhost:5173",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "content-type",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
+
+
+def test_non_local_origin_is_not_allowed_by_cors():
+    response = client.options(
+        "/copilot/query",
+        headers={
+            "Origin": "https://example.com",
+            "Access-Control-Request-Method": "POST",
+        },
+    )
+
+    assert response.status_code == 400
+    assert "access-control-allow-origin" not in response.headers
+
+
 def test_copilot_query_returns_json_serializable_conversational_result(monkeypatch):
     calls = []
 

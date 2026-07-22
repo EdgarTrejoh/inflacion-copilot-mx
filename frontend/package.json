@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:integration": "vitest run --config vite.integration.config.ts"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
