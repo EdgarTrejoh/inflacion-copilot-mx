@@ -10,7 +10,7 @@
       {
         "source": "/api/**",
         "run": {
-          "serviceId": "inflacion-copilot-api",
+          "serviceId": "inflacion-copilot-api-beta",
           "region": "us-central1"
         }
       },

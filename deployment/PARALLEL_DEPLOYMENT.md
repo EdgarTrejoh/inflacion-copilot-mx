@@ -9,7 +9,7 @@ Usuario
   └─ Firebase Hosting (frontend/dist)
        ├─ archivos estáticos React
        ├─ rutas SPA → /index.html
-       └─ /api/** → Cloud Run: inflacion-copilot-api
+       └─ /api/** → Cloud Run: inflacion-copilot-api-beta
                          ├─ FastAPI /api/copilot/**
                          ├─ Vertex AI / Gemini
                          └─ BigQuery / INPC
@@ -94,7 +94,7 @@ firebase deploy --only hosting
 $ProjectId = "<project-id>"
 $Region = "<region>"
 $Repository = "<artifact-registry-repository>"
-$Image = "$Region-docker.pkg.dev/$ProjectId/$Repository/inflacion-copilot-api:$(git rev-parse --short HEAD)"
+$Image = "$Region-docker.pkg.dev/$ProjectId/$Repository/inflacion-copilot-api-beta:$(git rev-parse --short HEAD)"
 
 docker build --file Dockerfile.api --tag $Image .
 docker run --rm --publish 8080:8080 --env-file .env $Image
@@ -111,9 +111,9 @@ $Region = "<region>"
 $Repository = "<artifact-registry-repository>"
 $RuntimeServiceAccount = "<runtime-service-account>"
 $MaxInstances = 3
-$Image = "$Region-docker.pkg.dev/$ProjectId/$Repository/inflacion-copilot-api:<image-tag>"
+$Image = "$Region-docker.pkg.dev/$ProjectId/$Repository/inflacion-copilot-api-beta:<image-tag>"
 
-gcloud run deploy inflacion-copilot-api `
+gcloud run deploy inflacion-copilot-api-beta `
   --image $Image `
   --region $Region `
   --service-account $RuntimeServiceAccount `
@@ -130,7 +130,7 @@ gcloud run deploy inflacion-copilot-api `
 `--cpu-throttling` mantiene facturación basada en solicitudes; `--min 0` permite escalar a cero. El comando deja el servicio privado. Firebase Hosting no podrá invocarlo hasta que se tome una decisión explícita de acceso. Si se aprueba acceso público, el cambio IAM separado sería:
 
 ```powershell
-gcloud run services add-iam-policy-binding inflacion-copilot-api `
+gcloud run services add-iam-policy-binding inflacion-copilot-api-beta `
   --region $Region `
   --member allUsers `
   --role roles/run.invoker
@@ -138,14 +138,14 @@ gcloud run services add-iam-policy-binding inflacion-copilot-api `
 
 ## Rollback y convivencia con Streamlit
 
-- Desplegar la API con el nombre independiente `inflacion-copilot-api`.
+- Desplegar la API con el nombre independiente `inflacion-copilot-api-beta`.
 - No modificar el servicio existente `inflacion-copilot` ni su Dockerfile.
 - Mantener accesible la URL de Streamlit durante la observación paralela.
 - Si React presenta una regresión, retirar o revertir Firebase Hosting y dirigir a los usuarios a la URL de Streamlit; no es necesario cambiar datos ni la API determinística.
 
 ## Verificar escalado a cero y ausencia de conexiones persistentes
 
-1. Revisar `gcloud run services describe inflacion-copilot-api --region $Region --format yaml`.
+1. Revisar `gcloud run services describe inflacion-copilot-api-beta --region $Region --format yaml`.
 2. Confirmar mínimo de instancias `0` y que `run.googleapis.com/cpu-throttling` no sea `false`.
 3. Abrir React y dejar la pestaña sin interacción después de cargar el rango.
 4. En DevTools, confirmar que no existen conexiones WebSocket o EventSource y que no aparecen solicitudes periódicas.

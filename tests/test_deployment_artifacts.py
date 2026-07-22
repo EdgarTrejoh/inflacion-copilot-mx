@@ -54,7 +54,7 @@ def test_firebase_serves_vite_dist_and_orders_api_before_spa_fallback():
     assert hosting["rewrites"][0] == {
         "source": "/api/**",
         "run": {
-            "serviceId": "inflacion-copilot-api",
+            "serviceId": "inflacion-copilot-api-beta",
             "region": "us-central1",
         },
     }
