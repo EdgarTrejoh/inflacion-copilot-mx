@@ -1,6 +1,6 @@
 import type { ApiErrorKind, BackendErrorResponse, CopilotDateRange, CopilotHistoryResponse, CopilotQueryRequest, CopilotQueryResponse } from "../types/api"
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL?.trim() ?? "").replace(/\/$/, "")
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL?.trim() || "/api").replace(/\/$/, "")
 
 export class ApiClientError extends Error {
   constructor(message: string, public readonly kind: ApiErrorKind, public readonly status?: number) {

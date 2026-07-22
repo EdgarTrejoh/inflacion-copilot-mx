@@ -5,7 +5,7 @@ import { resolve } from "node:path"
 const HEALTH_URL = "http://127.0.0.1:8031/health"
 
 async function waitForServer(process, output) {
-  for (let attempt = 0; attempt < 60; attempt += 1) {
+  for (let attempt = 0; attempt < 150; attempt += 1) {
     if (process.exitCode !== null) {
       throw new Error(`FastAPI integration server exited early. ${output.join("")}`)
     }

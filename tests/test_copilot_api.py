@@ -63,6 +63,23 @@ def test_local_vite_origin_is_allowed_by_cors():
     assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
 
 
+def test_firebase_api_prefix_exposes_copilot_contract(monkeypatch):
+    monkeypatch.setattr(
+        "api.copilot.get_copilot_date_range",
+        lambda: {
+            "min_date": "2000-01-01",
+            "max_date": "2026-02-01",
+            "indicator": "INPC - General",
+            "source": "INEGI / BigQuery",
+        },
+    )
+
+    response = client.get("/api/copilot/date-range")
+
+    assert response.status_code == 200
+    assert response.json()["min_date"] == "2000-01-01"
+
+
 def test_non_local_origin_is_not_allowed_by_cors():
     response = client.options(
         "/copilot/query",
