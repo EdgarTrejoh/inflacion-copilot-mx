@@ -1,8 +1,16 @@
-# Preparación de despliegue paralelo
+# Despliegue paralelo y operación beta
 
-Esta guía contiene comandos de referencia. Ninguno debe ejecutarse hasta seleccionar el proyecto, la región, la cuenta de servicio, el dominio y la política de acceso.
+Esta guía documenta la beta desplegada y los comandos para reproducirla. No autoriza publicar Firebase `live`, modificar el servicio Streamlit ni promover la beta a producción.
 
-## Arquitectura objetivo
+## Arquitectura anterior
+
+Streamlit sirve interfaz y lógica desde un proceso persistente en Cloud Run. Una pestaña abierta mantiene la sesión de Streamlit y puede prolongar el uso de CPU.
+
+```text
+Usuario → Cloud Run inflacion-copilot (Streamlit) → Gemini / BigQuery
+```
+
+## Arquitectura nueva en paralelo
 
 ```text
 Usuario
@@ -18,6 +26,15 @@ Rollback independiente: Cloud Run inflacion-copilot (Streamlit actual)
 ```
 
 La estrategia elegida usa un mismo origen. El build productivo define `VITE_API_BASE_URL=/api`; Firebase reescribe `/api/**` hacia Cloud Run y FastAPI conserva también los contratos originales `/copilot/**`. Esto evita CORS en operación normal, pero CORS sigue disponible para desarrollo local o para una futura separación de dominios.
+
+## Estado de la beta
+
+- Proyecto: `fluted-oath-477301-c1`.
+- Región: `us-central1`.
+- Backend: `inflacion-copilot-api-beta`.
+- Firebase: canal preview `react-beta`; el canal `live` permanece fuera de alcance.
+- Cuenta de ejecución: `inflacion-copilot-api-beta@fluted-oath-477301-c1.iam.gserviceaccount.com`.
+- Streamlit de respaldo: `inflacion-copilot`, sin cambios de imagen, IAM o tráfico.
 
 ## Variables
 
@@ -67,7 +84,7 @@ npm run test:integration
 npm run build
 ```
 
-## Construcción del frontend y Firebase
+## Construcción del frontend y canal Firebase beta
 
 Preparar el build de mismo origen:
 
@@ -79,14 +96,19 @@ npm run build
 Set-Location ..
 ```
 
-`firebase.json` publica `frontend/dist`, procesa primero `/api/**` y después aplica el fallback de la SPA. La región del rewrite está preparada con la región ya usada por el proyecto (`us-central1`); debe cambiarse junto con `$Region` si se elige otra. No se incluye `.firebaserc` para evitar asociar accidentalmente un proyecto remoto.
+`firebase.beta.json` publica `frontend/dist`, procesa primero `/api/**` y después aplica el fallback de la SPA. Está aislado deliberadamente del nombre predeterminado `firebase.json`: así un despliegue genérico no puede llevar por accidente el rewrite beta al canal `live`. No se incluye `.firebaserc`.
 
-Comandos futuros, no ejecutados en esta etapa:
+Desplegar o renovar exclusivamente el canal preview:
 
 ```powershell
-firebase use --add
-firebase deploy --only hosting
+$ProjectId = "fluted-oath-477301-c1"
+npx --yes firebase-tools@15.24.0 hosting:channel:deploy react-beta `
+  --project $ProjectId `
+  --expires 7d `
+  --config firebase.beta.json
 ```
+
+No ejecutar un despliegue Hosting sin `hosting:channel:deploy react-beta` y `--config firebase.beta.json`. La configuración de `live` deberá crearse y revisarse en una etapa productiva separada.
 
 ## Construcción de la API
 
@@ -110,7 +132,7 @@ $ProjectId = "<project-id>"
 $Region = "<region>"
 $Repository = "<artifact-registry-repository>"
 $RuntimeServiceAccount = "<runtime-service-account>"
-$MaxInstances = 3
+$MaxInstances = 2
 $Image = "$Region-docker.pkg.dev/$ProjectId/$Repository/inflacion-copilot-api-beta:<image-tag>"
 
 gcloud run deploy inflacion-copilot-api-beta `
@@ -127,7 +149,7 @@ gcloud run deploy inflacion-copilot-api-beta `
   --no-allow-unauthenticated
 ```
 
-`--cpu-throttling` mantiene facturación basada en solicitudes; `--min 0` permite escalar a cero. El comando deja el servicio privado. Firebase Hosting no podrá invocarlo hasta que se tome una decisión explícita de acceso. Si se aprueba acceso público, el cambio IAM separado sería:
+`--cpu-throttling` mantiene facturación basada en solicitudes; `--min 0` permite escalar a cero. El comando deja el servicio privado. Para la beta ya se aprobó invocación pública exclusivamente sobre el servicio nuevo; el binding reproducible es:
 
 ```powershell
 gcloud run services add-iam-policy-binding inflacion-copilot-api-beta `
@@ -135,6 +157,8 @@ gcloud run services add-iam-policy-binding inflacion-copilot-api-beta `
   --member allUsers `
   --role roles/run.invoker
 ```
+
+La cuenta beta tiene `roles/aiplatform.user`, `roles/bigquery.jobUser` y `roles/bigquery.dataViewer` limitado a la tabla de INPC. No reutiliza la cuenta predeterminada con privilegios amplios.
 
 ## Rollback y convivencia con Streamlit
 
@@ -153,3 +177,22 @@ gcloud run services add-iam-policy-binding inflacion-copilot-api-beta `
 6. Comparar CPU facturada antes y después del corte, sin generar tráfico sintético permanente.
 
 Una pestaña React abierta conserva sólo archivos estáticos en el navegador; no debe mantener una solicitud HTTP abierta al backend después de completar `GET /api/copilot/date-range` o una consulta iniciada por el usuario.
+
+La validación beta observó cero solicitudes nuevas durante la ventana sin interacción y, posteriormente, `active=0` e `idle=0` en `run.googleapis.com/container/instance_count`.
+
+## Limitaciones actuales
+
+- Streamlit sigue instalado transitoriamente en la imagen API porque `inflacion_service.py` conserva decoradores de caché; el contenedor no inicia el servidor Streamlit.
+- La API beta es pública y todavía no incorpora autenticación ni rate limiting.
+- La API de Cloud Billing Budgets no está habilitada; no se activó para esta migración.
+- Los contratos TypeScript se validan por compilación y pruebas, no mediante un esquema de runtime en el navegador.
+- El canal preview expira y no sustituye un despliegue productivo revisado.
+
+## Pasos posteriores al merge
+
+1. Mantener Streamlit disponible y no redirigir su tráfico.
+2. Mantener `react-beta` como canal de observación; no promoverlo a `live` automáticamente.
+3. Definir en un cambio separado el servicio, dominio, CORS y archivo Firebase productivos.
+4. Repetir pruebas E2E, seguridad, presupuesto y escalado a cero con la configuración productiva propuesta.
+5. Solicitar aprobación explícita antes de publicar Firebase `live` o cambiar tráfico.
+6. Retirar Streamlit sólo después del periodo de convivencia y con un rollback probado.

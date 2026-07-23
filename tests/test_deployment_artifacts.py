@@ -46,7 +46,8 @@ def test_docker_context_excludes_frontend_tests_and_local_secrets():
 
 
 def test_firebase_serves_vite_dist_and_orders_api_before_spa_fallback():
-    config = json.loads(read("firebase.json"))
+    assert not (ROOT / "firebase.json").exists()
+    config = json.loads(read("firebase.beta.json"))
     hosting = config["hosting"]
 
     assert hosting["public"] == "frontend/dist"
@@ -74,6 +75,18 @@ def test_frontend_defaults_to_relative_api_and_production_example_matches():
     assert "https://" not in production_env
 
 
+def test_frontend_runtime_dependencies_are_minimal_and_versions_are_pinned():
+    package = json.loads(read("frontend/package.json"))
+
+    assert set(package["dependencies"]) == {"react", "react-dom"}
+    assert {"vite", "@vitejs/plugin-react"} <= set(package["devDependencies"])
+    assert all(
+        version != "latest"
+        for group in ("dependencies", "devDependencies")
+        for version in package[group].values()
+    )
+
+
 def test_cloud_run_reference_enforces_request_billing_and_scale_to_zero():
     guide = read("deployment/PARALLEL_DEPLOYMENT.md")
 
@@ -82,14 +95,16 @@ def test_cloud_run_reference_enforces_request_billing_and_scale_to_zero():
     assert "--max $MaxInstances" in guide
     assert "--service-account $RuntimeServiceAccount" in guide
     assert "--no-allow-unauthenticated" in guide
-    assert "firebase deploy --only hosting" in guide
+    assert "--config firebase.beta.json" in guide
+    assert "hosting:channel:deploy react-beta" in guide
+    assert "firebase deploy --only hosting" not in guide
 
 
 def test_deployment_templates_do_not_contain_common_secret_formats():
     artifact_paths = [
         "Dockerfile.api",
         "requirements.api.txt",
-        "firebase.json",
+        "firebase.beta.json",
         "frontend/.env.production.example",
         "deployment/cloud-run.env.example.yaml",
         "deployment/PARALLEL_DEPLOYMENT.md",

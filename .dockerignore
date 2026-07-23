@@ -14,7 +14,7 @@ tests/
 test_*.py
 .github/
 deployment/
-firebase.json
+firebase*.json
 README.md
 cloudbuild*.yaml
 Dockerfile
