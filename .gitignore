@@ -57,5 +57,8 @@ htmlcov/
 # ---- Streamlit (si lo usas luego) ----
 .streamlit/
 
+# ---- Local deployment configuration ----
+deployment/cloud-run.env.yaml
+
 # ---- Docker ----
 *.pid

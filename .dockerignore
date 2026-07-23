@@ -9,3 +9,12 @@ __pycache__/
 *.pyc
 tmp/
 *.log
+frontend/
+tests/
+test_*.py
+.github/
+deployment/
+firebase*.json
+README.md
+cloudbuild*.yaml
+Dockerfile

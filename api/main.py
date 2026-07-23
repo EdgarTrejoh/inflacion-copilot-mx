@@ -1,5 +1,8 @@
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 
+from api.copilot import router as copilot_router
+from api.cors import get_allowed_origins
 from inflation_api_service import (
     BigQueryConfigError,
     BigQueryQueryError,
@@ -17,6 +20,17 @@ app = FastAPI(
     title="Inflacion Copilot MX API",
     version="0.1.0",
 )
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=get_allowed_origins(),
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Accept", "Content-Type"],
+)
+
+app.include_router(copilot_router)
+app.include_router(copilot_router, prefix="/api", include_in_schema=False)
 
 
 @app.get("/health")
