@@ -108,7 +108,7 @@ def test_frontend_runtime_dependencies_are_minimal_and_versions_are_pinned():
 
 
 def test_cloud_run_reference_enforces_request_billing_and_scale_to_zero():
-    guide = read("deployment/PARALLEL_DEPLOYMENT.md")
+    guide = read("deployment/BETA_DEPLOYMENT_HISTORY.md")
 
     assert "--cpu-throttling" in guide
     assert re.search(r"--min\s+0", guide)
@@ -125,9 +125,11 @@ def test_deployment_templates_do_not_contain_common_secret_formats():
         "Dockerfile.api",
         "requirements.api.txt",
         "firebase.beta.json",
+        "firebase.production.json",
         "frontend/.env.production.example",
         "deployment/cloud-run.env.example.yaml",
-        "deployment/PARALLEL_DEPLOYMENT.md",
+        "deployment/BETA_DEPLOYMENT_HISTORY.md",
+        "deployment/PRODUCTION_OPERATIONS.md",
     ]
     combined = "\n".join(read(path) for path in artifact_paths)
 
