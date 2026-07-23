@@ -65,6 +65,26 @@ def test_firebase_serves_vite_dist_and_orders_api_before_spa_fallback():
     }
 
 
+def test_production_firebase_targets_only_the_production_api():
+    config_text = read("firebase.production.json")
+    config = json.loads(config_text)
+    hosting = config["hosting"]
+
+    assert hosting["public"] == "frontend/dist"
+    assert hosting["rewrites"][0] == {
+        "source": "/api/**",
+        "run": {
+            "serviceId": "inflacion-copilot-api",
+            "region": "us-central1",
+        },
+    }
+    assert hosting["rewrites"][1] == {
+        "source": "**",
+        "destination": "/index.html",
+    }
+    assert "inflacion-copilot-api-beta" not in config_text
+
+
 def test_frontend_defaults_to_relative_api_and_production_example_matches():
     client = read("frontend/src/services/api.ts")
     production_env = read("frontend/.env.production.example")
