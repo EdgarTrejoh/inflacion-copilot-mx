@@ -3,8 +3,7 @@
 name: Deploy to Cloud Run
 
 on:
-  push:
-    branches: [ main ] # Se activa cada vez que subas a la rama main
+  workflow_dispatch:
 
 jobs:
   deploy:
