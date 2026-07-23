@@ -1,441 +1,263 @@
-<div align="center">
+# Inflación Copilot MX
 
-# 📈 Inflación Copilot MX
+Aplicación educativa para analizar inflación y poder adquisitivo en México mediante lenguaje natural, cálculos reproducibles y datos oficiales del Índice Nacional de Precios al Consumidor (INPC).
 
-**Plataforma conversacional para analizar poder adquisitivo en México**  
-con lenguaje natural, datos oficiales e IA responsable.
+**Estado actual:** React es el frontend productivo principal en Firebase Hosting y FastAPI es el backend productivo en Cloud Run. La API escala a cero cuando no recibe solicitudes. La aplicación Streamlit anterior permanece disponible temporalmente como rollback y su despliegue sólo puede iniciarse manualmente.
 
-[![Estado](https://img.shields.io/badge/estado-MVP%20en%20producción-brightgreen?style=flat-square)](https://github.com/tu-usuario/inflacion-copilot-mx)
-[![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
-[![Streamlit](https://img.shields.io/badge/Streamlit-1.x-FF4B4B?style=flat-square&logo=streamlit&logoColor=white)](https://streamlit.io)
-[![Google Cloud](https://img.shields.io/badge/Google%20Cloud-BigQuery%20%7C%20Vertex%20AI-4285F4?style=flat-square&logo=google-cloud&logoColor=white)](https://cloud.google.com)
-[![Docker](https://img.shields.io/badge/Docker-ready-2496ED?style=flat-square&logo=docker&logoColor=white)](https://docker.com)
-[![Licencia](https://img.shields.io/badge/licencia-MIT-blue?style=flat-square)](LICENSE)
-[![Google AI Essentials](https://img.shields.io/badge/Google%20AI%20Essentials-AI%20Applied%20Challenge-orange?style=flat-square&logo=google)](https://grow.google)
+- Repositorio: [github.com/EdgarTrejoh/inflacion-copilot-mx](https://github.com/EdgarTrejoh/inflacion-copilot-mx)
+- Aplicación productiva: [fluted-oath-477301-c1.web.app](https://fluted-oath-477301-c1.web.app)
+- Tecnologías principales: React, TypeScript, Vite, FastAPI, Python, Firebase Hosting, Cloud Run, BigQuery, Vertex AI/Gemini y Docker.
 
-> No es un chatbot. Es un **copiloto analítico**.
+> **Aviso:** La aplicación tiene fines educativos e informativos. No constituye asesoría financiera, fiscal, legal ni de inversión.
 
-</div>
+## Qué es el proyecto
 
----
+Inflación Copilot MX ayuda a personas no técnicas, analistas y sistemas consumidores a entender cómo cambia el valor del dinero en México. La experiencia web acepta preguntas como “¿a cuánto equivale un monto entre dos periodos?”, consulta el INPC general almacenado en BigQuery y presenta:
 
-## 🎯 ¿Qué es Inflación Copilot MX?
+- equivalencia monetaria;
+- inflación acumulada;
+- INPC inicial y final;
+- histórico ordenado;
+- gráfica y tabla;
+- comentario analítico.
 
-Inflación Copilot MX permite que cualquier persona consulte, calcule y entienda el impacto de la inflación en México de forma clara y confiable.
+La solución separa dos responsabilidades:
 
-Convierte preguntas en lenguaje natural en cálculos económicos precisos, visualizaciones interactivas e interpretaciones basadas en datos oficiales del INEGI.
+1. **Interpretación generativa:** Gemini interpreta la pregunta, identifica monto y fechas, valida que pertenezca al dominio de inflación y genera un comentario explicativo.
+2. **Cálculo determinístico:** las fórmulas económicas y los endpoints `/inflation/**` operan con parámetros estructurados y datos INPC. No invocan Gemini.
 
-**Ejemplo de consulta:**
+Los datos corresponden al INPC publicado por el INEGI. Este repositorio consume la tabla de BigQuery en modo lectura; el proceso externo que obtiene y carga los datos oficiales no forma parte del runtime del frontend ni de FastAPI.
 
-```
-¿A cuánto equivalen $100 pesos de 2020 en 2024?
-```
-
----
-
-## 🚀 Funcionalidades
-
-- Consultar inflación acumulada entre dos periodos
-- Calcular equivalencias de poder adquisitivo históricas
-- Visualizar la evolución del INPC
-- Obtener interpretación económica automática
-- Usar lenguaje natural como interfaz analítica
-
----
-
-## 🧠 Diferenciadores clave
-
-| Característica | Descripción |
-|---|---|
-| **Dominio acotado** | Solo inflación y poder adquisitivo en México |
-| **IA con guardrails** | Valida intención semántica antes de responder |
-| **Datos curados** | Fuente única: API oficial del INEGI |
-| **Automatización total** | Pipeline ETL sin intervención manual |
-| **Arquitectura empresarial** | Infraestructura cloud productiva en GCP |
-
----
-
-## 🏛️ Fuente de Datos
-
-**INEGI — API Oficial de Indicadores**
-
-✔ Sin scraping · ✔ Sin intermediarios · ✔ Trazabilidad completa
-
----
-
-## ☁️ Arquitectura del Sistema
-
-### Flujo de consulta
-
-```mermaid
-flowchart TD
-    A[👤 Usuario] --> B[Streamlit · UI Conversacional]
-    B --> C[Vertex AI · Gemini 2.5 Flash]
-    C --> D[(BigQuery · Datos Oficiales)]
-    D --> E[Resultados + Visualización + Lectura Analítica]
-    E --> A
-```
-
-### Pipeline ETL automatizado
+## Arquitectura productiva
 
 ```mermaid
 flowchart LR
-    A[Cloud Scheduler\ncron mensual] --> B[Cloud Run\nservicio ETL Python]
-    B --> C[INEGI API]
-    C --> D[ETL\nNormalización]
-    D --> E[(BigQuery\ninflacion_historica)]
+    U["Usuario"] --> FH["Firebase Hosting<br/>sitio live"]
+    FH --> FE["React + TypeScript + Vite<br/>archivos estáticos"]
+    FE -->|"/api/copilot/**"| RW["Rewrite /api/**"]
+    RW --> API["Cloud Run<br/>inflacion-copilot-api<br/>FastAPI"]
+
+    API --> CONV["Flujo conversacional<br/>/copilot/**"]
+    CONV --> BQ[("BigQuery<br/>INPC general")]
+    CONV --> VA["Vertex AI<br/>Gemini"]
+
+    SYS["Sistemas consumidores<br/>por ejemplo, infonavit-engine"] -->|"/inflation/**"| DET["API determinística<br/>FastAPI"]
+    DET --> BQ
+
+    INEGI["INEGI<br/>datos oficiales"] --> LOAD["Proceso externo<br/>de obtención y carga"]
+    LOAD --> BQ
+
+    subgraph RB["Rollback temporal"]
+        ST["Cloud Run<br/>inflacion-copilot<br/>Streamlit"]
+    end
+    U -.-> ST
+    ST --> BQ
+    ST --> VA
 ```
 
----
+### Flujos diferenciados
 
-## 🗄️ Modelo de Datos
+- **Conversacional:** navegador → Firebase Hosting → `/api/copilot/**` → FastAPI → BigQuery y Vertex AI.
+- **Determinístico:** sistemas → `/inflation/**` → FastAPI → BigQuery. No usa Gemini.
+- **Datos:** INEGI → proceso externo de carga → BigQuery → servicios de consulta.
+- **Rollback:** Streamlit continúa en un servicio Cloud Run independiente y no recibe tráfico desde Firebase Hosting.
 
-**Dataset:** `datos_economicos_mx` · **Tabla:** `inflacion_historica`
+Firebase sirve la SPA y reescribe `/api/**` al servicio productivo `inflacion-copilot-api` en `us-central1`. FastAPI registra los endpoints conversacionales tanto en `/copilot/**` como en `/api/copilot/**`. Los endpoints determinísticos no tienen alias `/api`.
 
-| Campo | Tipo | Descripción |
+Una pestaña React abierta no utiliza WebSocket, EventSource ni polling periódico. Después de completar la carga inicial o una consulta iniciada por la persona usuaria, no mantiene solicitudes abiertas al backend.
+
+## Stack
+
+| Capa | Tecnología | Responsabilidad |
 |---|---|---|
-| `fecha` | TIMESTAMP | Fecha del registro |
-| `periodo` | STRING | Formato YYYY/MM |
-| `valor_inpc` | FLOAT | Índice INPC |
-| `tipo` | STRING | General / Subyacente / No subyacente |
-| `procesado_en` | TIMESTAMP | Timestamp de carga |
-| `fuente` | STRING | `API_INEGI` |
-
----
-
-## 🤖 IA Responsable por Diseño
-
-Antes de cualquier cálculo, el agente:
-
-1. Interpreta la intención semántica de la consulta
-2. Valida relevancia al dominio de inflación
-3. Restringe fechas fuera del rango disponible
-4. Rechaza solicitudes fuera de contexto
-5. Usa únicamente fuentes oficiales verificables
-
-| Tipo de consulta | Comportamiento |
-|---|---|
-| ✅ Válida | Calcula, visualiza y explica |
-| ⚠️ Fuera de rango | Bloquea y notifica fechas válidas |
-| 🚫 Fuera de dominio | Rechaza con mensaje claro |
-
----
-
-## 🧩 Stack Tecnológico
-
-| Capa | Tecnología |
-|---|---|
-| Frontend | Streamlit |
-| IA Generativa | Google Vertex AI — Gemini 2.5 Flash |
-| Base de Datos | Google BigQuery |
-| Orquestación ETL | Cloud Scheduler + Cloud Run |
-| Contenerización | Docker |
-| Lenguaje | Python 3.12 |
-
----
-
-## 📦 Instalación Local
-
-```bash
-git clone https://github.com/tu-usuario/inflacion-copilot-mx.git
-cd inflacion-copilot-mx
-pip install -r requirements.txt
-```
-
-### Configuración del Entorno (`.env`)
-
-Crea un archivo `.env` en la raíz del proyecto para definir las credenciales:
-
-```env
-GCP_PROJECT_ID="tu-proyecto-gcp"
-GCP_LOCATION="us-central1"
-GCP_TABLE_ID="tu-proyecto-gcp.datos_economicos_mx.inflacion_historica"
-```
-
-### Configuración de Fechas (`config.py`)
-
-Las fechas máximas y mínimas de consulta están definidas en `config.py`. Ajusta `MIN_DATE` y `MAX_DATE` de ser necesario (la plataforma soporta cálculos hasta el **1 de febrero de 2026**).
-
-### Correr la Aplicación
-
-```bash
-streamlit run app.py
-```
-
-### Correr la API REST local
-
-La API FastAPI expone calculos estructurados de inflacion acumulada para consumo de otros servicios. Este modo no usa IA generativa, Gemini, Vertex AI ni clasificacion de intencion; solo consulta INPC en BigQuery y calcula:
-
-```text
-inflation_pct = ((inpc_end / inpc_start) - 1) * 100
-```
-
-La UI conversacional de Streamlit sigue funcionando en `app.py` como experiencia separada.
-
-```bash
-uvicorn api.main:app --reload --port 8020
-```
-
-#### `GET /health`
-
-```bash
-curl http://127.0.0.1:8020/health
-```
-
-Respuesta:
-
-```json
-{
-  "status": "ok",
-  "service": "inflacion-copilot-api"
-}
-```
-
-#### `GET /inflation/period`
-
-Consulta inflacion acumulada entre dos fechas con formato `YYYY-MM-DD`:
-
-```bash
-curl "http://127.0.0.1:8020/inflation/period?start_date=2024-01-01&end_date=2025-12-01"
-```
-
-Respuesta esperada:
-
-```json
-{
-  "start_date": "2024-01-01",
-  "end_date": "2025-12-01",
-  "inpc_start": 133.555,
-  "inpc_end": 140.123,
-  "factor": 1.0491782415487993,
-  "inflation_pct": 4.91782415487993,
-  "source": "INEGI / BigQuery",
-  "indicator": "INPC - General",
-  "method": "inflation_pct = ((inpc_end / inpc_start) - 1) * 100"
-}
-```
-
-Variables requeridas para la API:
-
-```env
-GCP_PROJECT_ID="tu-proyecto-gcp"
-GCP_TABLE_ID="tu-proyecto-gcp.datos_economicos_mx.inflacion_historica"
-```
-
-`GCP_LOCATION` se mantiene para la app Streamlit con Vertex AI. La API no la requiere.
-
-Esta API puede ser consumida posteriormente por `infonavit-strategic-report-api`; la integracion con INFONAVIT no forma parte de esta fase.
-
-#### `GET /inflation/average-period`
-
-Calcula inflacion promedio comparable entre dos periodos anuales o YTD. A diferencia de `/inflation/period`, que sirve para equivalencias punto-a-punto entre dos fechas, este endpoint sirve para comparar agregados acumulados como monto colocado INFONAVIT, ticket promedio anual o cortes YTD.
-
-Formula:
-
-```text
-inflation_pct = ((avg_inpc_current_period / avg_inpc_previous_period) - 1) * 100
-```
-
-Ejemplo para comparar INFONAVIT 2025 vs 2024 ano completo:
-
-```bash
-curl "http://127.0.0.1:8020/inflation/average-period?current_year=2025&previous_year=2024&month_limit=12"
-```
-
-Ejemplo YTD comparable:
-
-```bash
-curl "http://127.0.0.1:8020/inflation/average-period?current_year=2026&previous_year=2025&month_limit=4"
-```
-
-Respuesta esperada:
-
-```json
-{
-  "current_year": 2025,
-  "previous_year": 2024,
-  "month_limit": 12,
-  "comparability": "YTD comparable",
-  "current_period": {
-    "start_date": "2025-01-01",
-    "end_date": "2025-12-01",
-    "avg_inpc": 140.123
-  },
-  "previous_period": {
-    "start_date": "2024-01-01",
-    "end_date": "2024-12-01",
-    "avg_inpc": 133.555
-  },
-  "factor": 1.0491782415487993,
-  "inflation_pct": 4.91782415487993,
-  "source": "INEGI / BigQuery",
-  "indicator": "INPC - General",
-  "method": "inflation_pct = ((avg_inpc_current_period / avg_inpc_previous_period) - 1) * 100"
-}
-```
-
-Este endpoint tampoco usa IA. Es deterministico, consulta BigQuery en modo lectura y puede ser consumido posteriormente por `infonavit-strategic-report-api`.
-
-#### `GET /inflation/monthly-comparable`
-
-Calcula factores de inflacion comparables mes contra el mismo mes del ano previo. Este endpoint esta pensado para deflactar cada punto mensual de una serie INFONAVIT, no para agregados acumulados.
-
-Formula:
-
-```text
-factor = current_month_inpc / previous_same_month_inpc
-```
-
-Ejemplo:
-
-```bash
-curl "http://127.0.0.1:8020/inflation/monthly-comparable?current_year=2026&previous_year=2025&month_limit=4"
-```
-
-Respuesta esperada:
-
-```json
-{
-  "current_year": 2026,
-  "previous_year": 2025,
-  "month_limit": 4,
-  "comparability": "monthly_same_month",
-  "factors": [
-    {
-      "month": 1,
-      "current_period": "2026-01",
-      "previous_period": "2025-01",
-      "current_inpc": 140.1,
-      "previous_inpc": 134.2,
-      "factor": 1.0439642324888228,
-      "inflation_pct": 4.3964232488822755
-    }
-  ],
-  "warnings": [],
-  "source": "INEGI / BigQuery",
-  "indicator": "INPC - General",
-  "method": "factor = current_month_inpc / previous_same_month_inpc"
-}
-```
-
-Si falta INPC para alguno de los meses solicitados, el mes se omite de `factors` y se reporta en `warnings`. Si no hay ningun par mensual comparable, la API devuelve 404.
-
-### Ejecutar Pruebas Automatizadas (Testing)
-
-El proyecto cuenta con testing unitario implementado con `pytest`. Para correr la batería de pruebas:
-
-```bash
-pytest test_inflacion_service.py -v
-```
-
-Para correr toda la suite, incluyendo pruebas de API con mocks:
-
-```bash
-python -m pytest -q
-```
-
-Nota de dependencias de testing: la suite usa `fastapi.testclient.TestClient`, que en versiones recientes de Starlette recomienda `httpx2`; por eso `requirements.txt` incluye `httpx2==2.4.0`.
-
-## 🐳 Despliegue con Docker
-
-Asegúrate de tener listo tu archivo `.env`.
-
-```bash
-docker build -t inflacion-app .
-docker run --env-file .env -p 8080:8080 inflacion-app
-```
-
-El Dockerfile actual conserva el arranque productivo de Streamlit.
-
-### Modo API con Docker
-
-`Dockerfile.api` empaqueta solo el modo API FastAPI para Cloud Run. La imagen arranca Uvicorn con el puerto definido por `PORT`, usando `8080` por defecto.
-
-Build local:
-
-```bash
-docker build -f Dockerfile.api -t inflacion-copilot-api .
-```
-
-Run local:
-
-```bash
-docker run --rm -p 8080:8080 --env-file .env inflacion-copilot-api
-```
-
-Variables requeridas en runtime:
-
-```env
-GCP_PROJECT_ID="tu-proyecto-gcp"
-GCP_TABLE_ID="tu-proyecto-gcp.datos_economicos_mx.inflacion_historica"
-```
-
-Health check:
-
-```bash
-curl http://127.0.0.1:8080/health
-```
-
-Endpoint de inflacion promedio comparable:
-
-```bash
-curl "http://127.0.0.1:8080/inflation/average-period?current_year=2025&previous_year=2024&month_limit=12"
-```
-
-`Dockerfile.api` no copia `.env` ni credenciales dentro de la imagen; las variables y credenciales deben inyectarse en runtime. Streamlit sigue usando el `Dockerfile` original.
-
-### Build API con Cloud Build
-
-`cloudbuild.api.yaml` construye la imagen de la API con `Dockerfile.api` y la publica en Artifact Registry. No modifica el Dockerfile original de Streamlit.
-
-Build:
+| Frontend productivo | React 19, TypeScript, Vite | Interfaz, estados y consumo HTTP |
+| Visualización | SVG nativo | Gráfica responsiva del histórico INPC |
+| Backend | FastAPI, Python | Contratos conversacionales y determinísticos |
+| IA generativa | Vertex AI / Gemini | Interpretación de lenguaje natural y comentario |
+| Datos | BigQuery | Consulta de INPC general |
+| Hosting | Firebase Hosting | Archivos estáticos, SPA y rewrite `/api/**` |
+| Cómputo | Cloud Run | Contenedor FastAPI con escalado a cero |
+| Contenedores | Docker | Imagen API mediante `Dockerfile.api` |
+| Rollback temporal | Streamlit | Experiencia anterior, desplegable manualmente |
+
+## Funcionalidades
+
+- Preguntas en lenguaje natural sobre inflación y poder adquisitivo en México.
+- Monto predeterminado cuando la consulta omite una cantidad.
+- Validación de dominio, formato, orden y rango dinámico de fechas.
+- Equivalencia monetaria, factor de actualización e inflación acumulada.
+- Histórico INPC ordenado, gráfica SVG y tabla accesible.
+- Comentario analítico generado con Gemini, con degradación controlada si falla.
+- Mensajes comprensibles para preguntas vacías, rechazos, datos ausentes y errores HTTP o de red.
+- Diseño responsivo y navegación semántica para usuarios no técnicos.
+- Endpoints determinísticos para integración estructurada.
+
+## Desarrollo local
+
+### Requisitos
+
+- Python compatible con el entorno virtual del proyecto.
+- Node.js y npm compatibles con `frontend/package-lock.json`.
+- Credenciales de aplicación de Google sólo si se consultarán servicios reales. Las pruebas automatizadas usan mocks o fakes.
+
+### Backend
+
+Desde la raíz:
 
 ```powershell
-gcloud builds submit --config cloudbuild.api.yaml --region us-central1 .
+.\.venv\Scripts\python.exe -m uvicorn api.main:app --reload --port 8020
 ```
 
-Deploy posterior a Cloud Run:
+FastAPI queda disponible en `http://127.0.0.1:8020`. Para usar BigQuery y Vertex AI se requieren:
+
+```text
+GCP_PROJECT_ID
+GCP_LOCATION
+GCP_TABLE_ID
+COPILOT_ALLOWED_ORIGINS
+```
+
+`PORT` lo inyecta Cloud Run; localmente Uvicorn recibe el puerto por línea de comandos.
+
+### Frontend
 
 ```powershell
-gcloud run deploy inflacion-copilot-api `
-  --image us-central1-docker.pkg.dev/PROJECT_ID/cloud-run-source-deploy/inflacion-copilot-api:latest `
-  --region us-central1 `
-  --allow-unauthenticated `
-  --port 8080 `
-  --memory 512Mi `
-  --cpu 1 `
-  --min-instances 0 `
-  --max-instances 1 `
-  --set-env-vars GCP_PROJECT_ID=PROJECT_ID,GCP_LOCATION=us-central1,GCP_TABLE_ID=PROJECT_ID.datos_economicos_mx.inflacion_historica
+cd frontend
+Copy-Item .env.example .env.local
+npm ci
+npm run dev
 ```
 
-Reemplaza `PROJECT_ID` por el proyecto GCP real al ejecutar el deploy. No incluyas `.env`, service account JSON ni credenciales dentro de la imagen.
+`frontend/.env.example` define:
 
----
+```env
+VITE_API_BASE_URL=http://127.0.0.1:8020
+```
 
-## 🧪 Casos de Uso
+Vite muestra la URL local al iniciar; normalmente es `http://localhost:5173`.
 
-Educación financiera · Consultoría económica · Presentaciones ejecutivas · Herramientas fintech · Análisis macroeconómico
+### Build productivo local
 
----
+```powershell
+cd frontend
+$env:VITE_API_BASE_URL="http://127.0.0.1:8020"
+npm run build
+npx vite preview --host 127.0.0.1 --port 5173
+```
 
-## 🤝 Contribuciones
+Actualmente `frontend/package.json` **no contiene** un script `preview`; debe utilizarse `npx vite preview` salvo que el repositorio cambie posteriormente.
 
-Las contribuciones son bienvenidas. Por favor abre un *issue* para discutir cambios mayores antes de enviar un *pull request*.
+## API conversacional
 
----
+La interfaz React consume estos contratos. En acceso directo al backend se encuentran bajo `/copilot/**`; en producción Firebase los expone como `/api/copilot/**`.
 
-## 📄 Licencia
+### `POST /copilot/query`
 
-Distribuido bajo licencia MIT.
+Alias productivo: `POST /api/copilot/query`.
 
----
+Cuerpo:
 
-<div align="center">
+```json
+{
+  "question": "Pregunta sobre inflación y poder adquisitivo"
+}
+```
 
-Desarrollado por **Edgar Trejo**  
-como parte del programa **Google AI Essentials — AI Applied Challenge, Módulo 4**
+La respuesta exitosa contiene los campos reales:
 
-*Implementa principios prácticos de IA Responsable: guardrails conversacionales, validación semántica de intención, restricción de dominio y trazabilidad de fuentes oficiales.*
+- `question`;
+- `intent`: validez, rechazo, fechas y monto interpretados;
+- `result`: estado, mensaje y detalle del cálculo;
+- `history`: lista de objetos `date` e `inpc`;
+- `formatted_result`;
+- `analytical_comment`.
 
-</div>
+Devuelve errores controlados `400`, `404` o `502` según validación, ausencia de datos o dependencia externa.
+
+### `GET /copilot/history`
+
+Alias productivo: `GET /api/copilot/history`.
+
+Parámetros obligatorios:
+
+- `start_date=YYYY-MM-DD`;
+- `end_date=YYYY-MM-DD`.
+
+Devuelve `start_date`, `end_date`, `indicator`, `source` e `history`.
+
+### `GET /copilot/date-range`
+
+Alias productivo: `GET /api/copilot/date-range`.
+
+Devuelve `min_date`, `max_date`, `indicator` y `source`. La fecha máxima se consulta dinámicamente desde los datos disponibles.
+
+## API determinística
+
+Estos endpoints están pensados para consumo estructurado por integraciones como `infonavit-engine`. No usan Gemini, prompts ni estado de Streamlit.
+
+| Método y ruta | Parámetros | Uso |
+|---|---|---|
+| `GET /health` | Ninguno | Salud del servicio |
+| `GET /inflation/period` | `start_date`, `end_date` | Inflación punto a punto |
+| `GET /inflation/average-period` | `current_year`, `previous_year`, `month_limit` | Promedios comparables anual/YTD |
+| `GET /inflation/monthly-comparable` | `current_year`, `previous_year`, `month_limit` | Factores mensuales comparables |
+
+Las fechas usan `YYYY-MM-DD`; `month_limit` acepta valores de 1 a 12. Las respuestas incluyen fuente, indicador, método y valores calculados. Los meses sin pares comparables se reportan en `warnings`; si no existe ningún par, el endpoint responde `404`.
+
+La fórmula punto a punto es:
+
+```text
+factor = inpc_end / inpc_start
+inflation_pct = (factor - 1) * 100
+```
+
+La documentación OpenAPI local se encuentra en `http://127.0.0.1:8020/docs`.
+
+## Pruebas
+
+Desde la raíz:
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest -q
+```
+
+Frontend:
+
+```powershell
+cd frontend
+npm test
+npm run test:integration
+npm run build
+```
+
+Las pruebas de integración realizan HTTP real contra una aplicación FastAPI temporal, pero sustituyen BigQuery y Vertex AI; no llaman servicios reales de GCP.
+
+## Despliegue y operación
+
+- `firebase.production.json`: sitio Firebase live; publica `frontend/dist` y reescribe `/api/**` a `inflacion-copilot-api`.
+- `firebase.beta.json`: canal beta separado; apunta a `inflacion-copilot-api-beta`.
+- `Dockerfile.api`: inicia exclusivamente `api.main:app` con Uvicorn y respeta `PORT`.
+- `Dockerfile`: conserva la aplicación Streamlit de rollback.
+- `.github/workflows/deploy.yml`: despliegue manual de Streamlit mediante `workflow_dispatch`; no se ejecuta con pushes o merges.
+
+Las imágenes productivas deben identificarse con el SHA completo del commit o con otro tag inmutable. No se recomienda desplegar tags mutables.
+
+Las instrucciones operativas, validaciones y rollback están en [deployment/PRODUCTION_OPERATIONS.md](deployment/PRODUCTION_OPERATIONS.md). La historia de la beta está en [deployment/BETA_DEPLOYMENT_HISTORY.md](deployment/BETA_DEPLOYMENT_HISTORY.md).
+
+## Estado y limitaciones
+
+- Streamlit sigue siendo una dependencia transitoria de la imagen API porque `inflacion_service.py` conserva decoradores de caché; `Dockerfile.api` no inicia el servidor Streamlit.
+- La API pública no incorpora todavía autenticación ni rate limiting.
+- Los tipos TypeScript se verifican en compilación y pruebas, pero las respuestas no se validan en runtime mediante un esquema.
+- Las fuentes Google usadas por la interfaz requieren acceso externo; si se bloquean, el navegador utiliza las fuentes alternativas definidas en CSS.
+- El pipeline que obtiene datos del INEGI no se implementa en este repositorio.
+- Streamlit debe retirarse sólo después del periodo de convivencia y de una decisión explícita con rollback probado.
+- El proyecto es educativo y analítico; no reemplaza el criterio de un profesional.
+
+## Contribuciones
+
+Antes de proponer cambios amplios, abre un issue. Todo pull request debe mantener la separación entre el flujo conversacional, la API determinística y el rollback Streamlit, además de ejecutar la matriz de pruebas correspondiente.
+
+## Licencia
+
+Consulta las condiciones de licencia disponibles en el repositorio.
