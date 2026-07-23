@@ -121,6 +121,8 @@ COPILOT_ALLOWED_ORIGINS
 
 ### Frontend
 
+Consulta también la [guía específica del frontend](frontend/README.md) para conocer componentes, contratos consumidos y manejo de errores.
+
 ```powershell
 cd frontend
 Copy-Item .env.example .env.local
